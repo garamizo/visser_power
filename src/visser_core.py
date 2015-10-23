@@ -27,7 +27,7 @@ def direct_kinematics(joint_angles):
     T45 = homogeneous_matrix([50e-3, 0, 0], joint_angles[4], [0, 1, 0])
     T5e = homogeneous_matrix([75e-3, 0, 0], 0, [0, 0, 1])
     Tec = homogeneous_matrix([-30e-3, 0, 115e-3], 2.0944, [-1, 1, -1])
-    Tem = homogeneous_matrix([20e-3, 0, 0], 0, [1, 0, 0])
+    Tem = homogeneous_matrix([75e-3, 0, 0], 0, [1, 0, 0])
     return T01, T12, T23, T34, T45, T5e, Tec, Tem
 
 
@@ -115,15 +115,18 @@ def core():
     # Publish static transformations
     pub_tf_static = rospy.Publisher("/tf_static", TFMessage, queue_size=5)
     t1 = pack_transrot([-30e-3, 0, 115e-3], [-1, 1, -1, 1], rospy.Time.now(), "usb_cam", "gripper")
-    t2 = pack_transrot([20e-3, 0, 0], [0, 0, 0, 1], rospy.Time.now(), "male", "gripper")
-    t3 = pack_transrot([100e-3, 0, 50e-3], [-1, 0, 1, 0], rospy.Time.now(), "female", "ar_marker_6")
+    t2 = pack_transrot([75e-3, 0, 0], [0, 0, 0, 1], rospy.Time.now(), "male", "gripper")
+    t3 = pack_transrot([125e-3, -10e-3, 75e-3], [-1, 0, 1, 0], rospy.Time.now(), "female", "ar_marker_6")
     t4 = pack_transrot([75e-3, 0, 0], [0, 0, 0, 1], rospy.Time.now(), "gripper", "link5")
-    static_tfs = TFMessage([t1, t2, t3, t4])
+    t5 = pack_transrot([-150e-3, 0,0], [0, 0, 0, 1], rospy.Time.now(), "approx", "female")
+    t6 = pack_transrot([100e-3, 0, 300e-3], [0, 0, 0, 1], rospy.Time.now(), "rest", "world")
+    static_tfs = TFMessage([t1, t2, t3, t4, t5, t6])
 
     # Angles to control Arduino
     pub_angles = rospy.Publisher('angles', Float64MultiArray, queue_size=5)
 
-    joint_angles = np.array([0, 0, 0, 0, 0])
+    joint_angles = np.array([0, -0.3, 0, 0, 0])
+    St = space_from_joints(joint_angles)
     state = 'searching'
 
     rate = rospy.Rate(10)
@@ -133,27 +136,32 @@ def core():
         pub_tf_static.publish(static_tfs)
 
         try:
-            sf = tf_buff.lookup_transform("world", "female", rospy.Time.now()-rospy.Duration(0.1), rospy.Duration(0.1))
-            Sf = space_from_StampedTransform( sf )
 
-            if state == 'searching':
-              state = 'closing'
+            in_factor = 0.99
+            if state == 'searching' or state == 'closing':
+                sf = tf_buff.lookup_transform("world", "approx", rospy.Time.now()-rospy.Duration(0.1), rospy.Duration(0.1))
+                St = space_from_StampedTransform( sf )*in_factor + St*(1-in_factor)
+                state = 'closing'
+
+            elif state == 'latching':
+                sf = tf_buff.lookup_transform("world", "female", rospy.Time.now()-rospy.Duration(0.1), rospy.Duration(0.1))
+                St = space_from_StampedTransform( sf )*in_factor + St*(1-in_factor)
+
+            elif state == 'end':
+                sf = tf_buff.lookup_transform("world", "rest", rospy.Time.now()-rospy.Duration(0.1), rospy.Duration(0.1))
+                St = space_from_StampedTransform( sf )
+
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            joint_goal = np.array([0, 0, 0, 0, 0])
-            state = 'searching'
             print 'Unrecognized tag'
-
-        if state == 'searching':
             time = rospy.Time.now().to_sec()
-            St = np.array([0, 0, 300e-3, 0.3*math.sin(2*math.pi*0.3*time), 0.2])
-        elif state == 'closing':
-            St = Sf + np.array([-50e-3, 0, 0, 0, 0])
-            print "hi"
-        elif state == 'latching':
-            St = Sf
-        elif state == 'end':
-            St = np.array([100e-3, 0, 300e-3, 0, 0])
+            yaw = (math.pi/4.0)*math.sin(2*math.pi*0.2*time)
+            x = 150e-3*math.cos(yaw)
+            y = -150e-3*math.sin(yaw)
+            z = 300e-3
+            pitch = 0.1
+            St = np.array([x, y, z, yaw, pitch])
+            state = 'searching'       
 
         # solution = opt.minimize(cost, joint_angles, args=(St,), 
         #   bounds=[(-math.pi/4, math.pi/4)]*5, method='L-BFGS-B')
@@ -166,7 +174,7 @@ def core():
             
             residual = np.linalg.norm(error(joint_angles,St), ord=2)
             print "Final evaluation: ", residual
-            if residual < 5e-3:
+            if residual < 2e-2:
                 if state == 'closing':
                   state = 'latching'
                 elif state == 'latching':
@@ -176,7 +184,7 @@ def core():
           joint_goal = np.array([0, 0, 0, 0, 0])
           print 'Divergence:', message
 
-        out_factor = 0.1
+        out_factor = 0.05
         joint_angles = out_factor*joint_goal + (1-out_factor)*joint_angles
 
         # Finally, update pose

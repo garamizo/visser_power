@@ -36,7 +36,7 @@ void setup() {
   joint[2].write( 90 );
   joint[3].write( 90 );
   joint[4].write( 90 );
-  gripper.write( 90 );
+  gripper.write( 180 );
 
   nh.initNode();
   nh.subscribe(sub);

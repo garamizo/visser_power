@@ -1,0 +1,11 @@
+#!/usr/bin/env Python
+
+import sys
+import copy
+import rospy
+import moveit_commander
+import moveit_msgs.msg
+import geometry_msgs.msg
+
+if __name == "__main__":
+	print "============ Starting tutorial setup"
