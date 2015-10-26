@@ -4,13 +4,15 @@
 //#include <std_msgs/Float32.h>
 
 ros::NodeHandle nh;
+const int DOF = 4;
+int pins[DOF+1] = {8, 9, 10, 11, 12};
 
 
-Servo joint[5], gripper;
+Servo joint[DOF], gripper;
 
 void receive_angles(const std_msgs::Float64MultiArray& msg)
 {
-  for(int k = 0; k < 5; k++)
+  for(int k = 0; k < DOF; k++)
     joint[k].write( msg.data[k] );
 }
 
@@ -24,19 +26,12 @@ ros::Subscriber<std_msgs::Float64MultiArray> sub("angles", receive_angles );
 
 void setup() {
   // put your setup code here, to run once:
-  joint[0].attach( 31 );
-  joint[1].attach( 33 );
-  joint[2].attach( 35 );
-  joint[3].attach( 37 );
-  joint[4].attach( 39 );
-  gripper.attach( 41 );
-
-  joint[0].write( 90 );
-  joint[1].write( 90 );
-  joint[2].write( 90 );
-  joint[3].write( 90 );
-  joint[4].write( 90 );
-  gripper.write( 180 );
+  for(int k = 0; k < DOF; k++) {
+    joint[k].attach(pins[k]);
+    joint[k].write(90);
+  }
+  gripper.attach(pins[DOF]);
+  gripper.write(180);
 
   nh.initNode();
   nh.subscribe(sub);
