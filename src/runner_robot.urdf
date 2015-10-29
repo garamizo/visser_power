@@ -1,0 +1,43 @@
+<robot name="vision_robot">
+  <link name="world" />
+  <link name="link1" />
+  <link name="link2" />
+  <link name="link3" />
+  <link name="link4" />
+  <link name="gripper" />
+
+  <joint name="joint1" type="continuous">
+    <parent link="world"/>
+    <child link="link1"/>
+    <origin xyz="0 0 70e-3" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <joint name="joint2" type="continuous">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 145e-3" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <joint name="joint3" type="continuous">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="150e-3 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <joint name="joint4" type="continuous">
+    <parent link="link3"/>
+    <child link="link4"/>
+    <origin xyz="50e-3 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <joint name="joint5" type="continuous">
+    <parent link="link4"/>
+    <child link="gripper"/>
+    <origin xyz="75e-3 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+</robot>

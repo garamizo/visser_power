@@ -123,7 +123,7 @@ def core():
     static_tfs = TFMessage([t1, t2, t3, t4, t5, t6])
 
     # Angles to control Arduino
-    pub_angles = rospy.Publisher('angles', Float64MultiArray, queue_size=5)
+    pub_angles = rospy.Publisher('joint_states2', Float64MultiArray, queue_size=5)
 
     joint_angles = np.array([0, -0.3, 0, 0, 0])
     St = space_from_joints(joint_angles)

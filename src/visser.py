@@ -3,53 +3,29 @@ import rospy
 from tf import transformations as tfs
 import numpy
 import math
-import scipy.optimize
-from std_msgs.msg import Float64MultiArray
 import robot
 from transitions import Machine
-from tf2_msgs.msg import TFMessage
 import tf2_ros
-from geometry_msgs.msg import TransformStamped
+import threading
 
 class SeeingRobot(robot.Robot):
 
     states = ['resting', 'searching', 'gazing', 'loading', 'connecting', 'unloading']
 
     def __init__(self):
-        rospy.init_node("visser")
-        self.joint_publisher = rospy.Publisher('angles', Float64MultiArray, queue_size=5)
 
-        tf_buff = tf2_ros.Buffer()
-        listener = tf2_ros.TransformListener(tf_buff)
+        super(SeeingRobot, self).__init__()
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
-        # Publish joint transformations
-        bc = tf2_ros.TransformBroadcaster()
-        
-        # Publish static transformations
-        pub_tf_static = rospy.Publisher("/tf_static", TFMessage, queue_size=5)
-        t1 = pack_transrot([-30e-3, 0, 115e-3], [-1, 1, -1, 1], rospy.Time.now(), "usb_cam", "gripper")
-        t2 = pack_transrot([75e-3, 0, 0], [0, 0, 0, 1], rospy.Time.now(), "male", "gripper")
-        t3 = pack_transrot([125e-3, -10e-3, 75e-3], [-1, 0, 1, 0], rospy.Time.now(), "female", "ar_marker_6")
-        t4 = pack_transrot([75e-3, 0, 0], [0, 0, 0, 1], rospy.Time.now(), "gripper", "link5")
-        t5 = pack_transrot([-150e-3, 0,0], [0, 0, 0, 1], rospy.Time.now(), "approx", "female")
-        t6 = pack_transrot([100e-3, 0, 300e-3], [0, 0, 0, 1], rospy.Time.now(), "rest", "world")
-        static_tfs = TFMessage([t1, t2, t3, t4, t5, t6])
-
-        super(SeeingRobot, self).__init__(self.joint_array_writer)
         self.field = 'exist'
         self.machine = Machine(model=self, states=SeeingRobot.states, initial='resting')
         self.machine.add_transition('start', 'resting', 'searching')
-        self.machine.add_transition('tag_found', 'searching', 'gazing', before='entry', after='exit')
+        self.machine.add_transition('connector_found', 'searching', 'gazing', before='entry', after='exit')
         # self.machine.add_transition('in_reach', 'gazing', 'connecting')
         # self.machine.add_transition('tag_lost', 'connecting', 'unloading', conditions='is_loaded')
         # self.machine.add_transition('unloaded', 'unloading', 'searching')
         # self.machine.add_transition('connected', 'connecting', 'resting')
-
-
-    def joint_array_writer(self, joints):
-        msg = Float64MultiArray()
-        msg.data = joints
-        self.joint_publisher.publish(msg)
 
     def entry(self):
         print 'Enter ', self.state
@@ -57,72 +33,118 @@ class SeeingRobot(robot.Robot):
     def exit(self):
         print 'Exit ', self.state
 
-    def turn_around(self):
-        self.move(self.plan([0, 0, 0.3, 0], math.pi/2))
-        while True:
-            self.move(self.plan([0, 0, 0.3, 0.5], math.pi/5))
-            t_tag, success = self.filter_tag_location()
-            if success:
-
 
     def recover(self):
         super(SeeingRobot, self).recover()
         self.machine.set_state('resting')
 
+    def get_transform(self, child, parent, duration):
 
-def pack_pose(time, child, parent, matrix=None, trans=None, quat=None):
+        def matrix_from_StampedTransform(msg):
+            T = msg.transform
+            trans = [T.translation.x, T.translation.y, T.translation.z]
+            quat = [T.rotation.x, T.rotation.y, T.rotation.z, T.rotation.w]
 
-    if matrix is not None and (trans is None and quat is None):
-        trans = tfs.translation_from_matrix(matrix)
-        quat = tfs.quaternion_from_matrix(matrix)
-    elif matrix is None and trans is not None and quat is not None:
-        matrix = None  # nothing
-    else:
-        print 'invalid use'
+            return tfs.concatenate_matrices(
+                tfs.translation_matrix(trans),
+                tfs.quaternion_matrix(quat))
 
-    t = TransformStamped()
-    t.header.frame_id = parent
-    t.header.stamp = time
-    t.child_frame_id = child
-    t.transform.translation.x = trans[0]
-    t.transform.translation.y = trans[1]
-    t.transform.translation.z = trans[2]
+        t0 = rospy.Time.now();
+        while rospy.Time.now() - t0 < duration:
+            try:
+                msg = self.tf_buffer.lookup_transform(parent, child, rospy.Time.now(), rospy.Duration(self.dt))
+                T = matrix_from_StampedTransform(msg)
+                return T, True
 
-    quat = numpy.array(quat)
-    quat = quat / numpy.linalg.norm(quat, ord=2)
-    t.transform.rotation.x = quat[0]
-    t.transform.rotation.y = quat[1]
-    t.transform.rotation.z = quat[2]
-    t.transform.rotation.w = quat[3]
-
-    return t
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                continue
+        return None, False
 
 
 if __name__ == '__main__':
 
     r = SeeingRobot()
-    # r.move(r.plan([0.1, 0, 0.2, 0]), lambda x: move_func(x, joint_publisher))
+
+    # scan for female connector
+    print("Scanning for connector")
+    search_poses = ["search1", "search2", "search1", "search3"]
+    pose_idx = 0
+    connector_inrange = False
+    while not connector_inrange:
+        pose_idx = (pose_idx + 1) % len(search_poses)
+        pose, success = r.get_transform(search_poses[pose_idx], "map", rospy.Duration(1))
+        plan, success = r.plan(r.space_from_matrix(pose), 1)
+        if success:
+            r.move(plan)
+        pose, connector_found = r.get_transform("_female", "map", rospy.Duration(1))
+        if connector_found: # has to be reachable
+            print "Connector found!"
+            plan, connector_inrange = r.plan(r.space_from_matrix(pose), 0.5)
+        rospy.sleep(1)
 
 
-    
-    pose = [0.4, 0, 0.2, 0]
-    r.move(r.plan(pose, math.pi/3))
+    # move close to connector when in range
+    print("Connector is reachable!")
 
-    count = 0
-    search_poses = [[0.2, 0, 0.2, 0], [0.2, 0.2, 0.2, 0], [0.2, -0.2, 0.2, 0]]
-    while not rospy.is_shutdown():
+    # sections = 5
+    # block_size = len(plan)/sections
+    # for k in range(0, sections):
+    #     plan2 = plan[k*block_size:(k+1)*block_size]
+    #     r.move(plan2)
+    #     rospy.sleep(0.5)
+    #     pose2, connector_found = r.get_transform("_female", "map", rospy.Duration(1))
+    #     if connector_found:
+    #         pose = pose2
 
-        if r.state == 'resting':
+    r.move(plan)
+    pose, connector_found = r.get_transform("_female", "map", rospy.Duration(1))
 
-        elif r.state == 'searching':
-            search_rate.sleep()
-            count = (count + 1) % 3
-            r.move(r.plan(search_poses[count]))
-            tag_pose, success = r.filter_tag_location()
+    # reajusting plan
+    print "Reajusting plan"
+    if connector_found:
+        plan, success = r.plan(r.space_from_matrix(pose), 1)
+        if success:
+            r.move(plan)
+
+
+    print("Finalizing")
+
+    rospy.spin()
+
+
+
+# if __name__ == '__main__':
+
+#     r = SeeingRobot()
+
+#     count = 0
+#     search_poses = ["search1", "search2", "search1", "search3"]
+
+#     search_rate = rospy.Rate(10)
+#     while not rospy.is_shutdown():
+
+#         if r.state == 'resting':
+
+#             r.start()
+
+#         elif r.state == 'searching':
+
+#             search_rate.sleep()
+#             count = (count + 1) % 4
+
+#             pose, success = r.get_transform(search_poses[count], "map")
+#             if success:
+#                 plan, success = r.plan(r.space_from_matrix(pose), 1)
+#                 r.move(plan)
             
-            if success: r.tag_found()
+#                 rospy.sleep(3)
+#                 pose, success = r.get_transform("_female", "map")
+#                 if success:
+#                     r.connector_found(pose)
+#             #if success: r.tag_found()
 
-        elif r.state == 'gazing':
-            
+#         elif r.state == 'gazing':
+#             print 'gazing'
+
 
     # rospy.spin()
