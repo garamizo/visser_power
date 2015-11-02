@@ -73,6 +73,14 @@ class Robot(object):
         self.dof = len(self.transformations)
         self.joints = numpy.zeros(self.dof)
 
+        offset = numpy.array([100, 90, 90, 70, 90])*numpy.pi/180.0
+        direction = numpy.array([-1, 1, -1, 1, -1])
+
+        joints_lim = [(numpy.array(self.dof*[numpy.pi]) - offset)/direction, (numpy.zeros(self.dof) - offset)/direction]
+        self.joints_max = numpy.amax(joints_lim, 0)
+        self.joints_min = numpy.amin(joints_lim, 0)
+        print self.joints_max, self.joints_min
+
         t = threading.Thread(target=self.state_publisher)
         t.start()
 
@@ -87,8 +95,17 @@ class Robot(object):
         # first calculate goal_joint
         def error_function(joint): return (self.space_coordinates(joint) - numpy.array(goal_space))
         x, _, ler, message = scipy.optimize.fsolve(error_function, 0*self.joints, full_output=True)
-        print x, ler, message
+        if not ler == 1:
+            print "No solution found. Target: ", goal_space
+            return None, False
+
         x = (x+math.pi) % (2*math.pi) - math.pi
+        if any(x > self.joints_max) or any(x < self.joints_min):
+            print "Solution out of bounds"
+            print x
+            print self.joints_max
+            print self.joints_min
+            return None, False
 
         # break trajectory to intermediate points
         time_required = numpy.max(numpy.abs(x-self.joints)) / speed
@@ -98,7 +115,7 @@ class Robot(object):
         a = numpy.array(x-self.joints).reshape(1, self.dof).repeat(N, 0)
         traject = a * mask + b
 
-        return map(numpy.array, traject), ler==1
+        return map(numpy.array, traject), True
 
     def move(self, newPlan):
 
@@ -106,8 +123,6 @@ class Robot(object):
         for joints in newPlan:
             self.joints = joints
             rate.sleep()
-
-        print 'Plan completed'
 
     def recover(self):
         self.joints = numpy.zeros(self.dof)

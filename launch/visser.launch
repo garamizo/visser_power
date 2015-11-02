@@ -1,8 +1,9 @@
 <launch>
 	<!-- Define static transformations -->
-	<node pkg="tf" type="static_transform_publisher" name="t1" args="-20e-3 -45e-3 90e-3 -1.57 0 -1.57 gripper usb_cam 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t2" args="0 117e-3 140e-3 0 1.57 1.57 ar_marker_6 female 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t3" args="-50e-3 0 0 0 0 0 female _female 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t1a" args="-20e-3 -45e-3 90e-3 -1.57 0 -1.57 gripper long_cam 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t1b" args="-20e-3 45e-3 90e-3 -1.57 0 -1.57 gripper fisheye_cam 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t2" args="121.6e-3 51.2e-3 140e-3 0 1.57 -1.57 ar_marker_1 female 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t3" args="-75e-3 0 0 0 0 0 female _female 100" />
 	<node pkg="tf" type="static_transform_publisher" name="t4" args="100e-3 0 300e-3 0 0 0 map rest 100" />
 	<node pkg="tf" type="static_transform_publisher" name="t5" args="100e-3 	0        250e-3 0 0.2 0  map search1 100" />
 	<node pkg="tf" type="static_transform_publisher" name="t6" args="50e-3  	50e-3   250e-3 0.7854 0.2 0 map search2 100" />
@@ -10,20 +11,37 @@
 
 	<!--node pkg="visual_servoing_powergrid" type="visser.py" name="main" /-->
 
+
+	<!--arg name="camera_frame_id" default="fisheye_cam" /-->
+	<!--arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/fisheye.yaml" /-->
+
+	<arg name="camera_frame_id" default="long_cam" />
+	<arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/long_camera.yaml" />
+
 	<!--include file="$(find usb_cam)/launch/usb_cam-test.launch"/-->
 	<node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
 		<param name="video_device" value="/dev/video0" />
 		<param name="image_width" value="640" />
 		<param name="image_height" value="480" />
 		<param name="pixel_format" value="yuyv" />
-		<param name="camera_frame_id" value="usb_cam" />
+		<param name="camera_frame_id" value="$(arg camera_frame_id)" />
+		<param name="camera_info_url" value="$(arg camera_info_url)" />
 		<param name="io_method" value="mmap"/>
 		<param name="framerate" value="30"/>
-		<param name="camera_info_url" value="file:///home/hirolab/.ros/camera_info/long_camera.yaml"/>
 	</node>
 
 
-	<include file="$(find ar_track_alvar)/launch/cam_indiv_no_kinect.launch"/>
+	<arg name="marker_size" default="5.68" />
+	<arg name="max_new_marker_error" default="0.08" />
+	<arg name="max_track_error" default="0.2" />
+
+	<arg name="cam_image_topic" default="/usb_cam/image_raw" />
+	<arg name="cam_info_topic" default="/usb_cam/camera_info" />
+
+	<arg name="output_frame" default="$(arg camera_frame_id)" />
+	<arg name="bundle_files" default="$(find visual_servoing_powergrid)/src/tags_locations.xml" />
+
+	<node name="ar_track_alvar" pkg="ar_track_alvar" type="findMarkerBundlesNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg bundle_files)" />
 
 	<node pkg="rosserial_python" type="serial_node.py" name="arduino_interface">
 		<param name="port" value="/dev/ttyACM0"/>
