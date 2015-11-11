@@ -4,8 +4,8 @@
 	<!--arg name="camera_frame_id" default="fisheye_cam" /-->
 	<!--arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/fisheye.yaml" /-->
 
-	<arg name="camera_frame_id" default="long_cam" />
-	<arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/long_camera.yaml" />
+	<arg name="camera_frame_id" default="usb_cam" />
+	<arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/fisheye.yaml" />
 
 	<!--include file="$(find usb_cam)/launch/usb_cam-test.launch"/-->
 	<node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
@@ -19,17 +19,13 @@
 		<param name="framerate" value="30"/>
 	</node>
 
-	<arg name="marker_size" default="5.68" />
+	<arg name="marker_size" default="4.6" />
 	<arg name="max_new_marker_error" default="0.08" />
 	<arg name="max_track_error" default="0.2" />
-
 	<arg name="cam_image_topic" default="/usb_cam/image_raw" />
 	<arg name="cam_info_topic" default="/usb_cam/camera_info" />
-
-	<arg name="output_frame" default="$(arg camera_frame_id)" />
-	<arg name="bundle_files" default="$(find visual_servoing_powergrid)/src/tags_locations.xml" />
+	<arg name="output_frame" default="/usb_cam" />
 
 	<node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame)" />
 
-	<node pkg="tf" type="static_transform_publisher" name="t2" args="121.6e-3 51.2e-3 140e-3 0 1.57 -1.57 ar_marker_1 female 100" />
 </launch>

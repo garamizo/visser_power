@@ -1,0 +1,13 @@
+port: /dev/ttyUSB0
+rate: 15
+joints: {
+    joint1: {id: 1, neutral: 2048, max_angle: 50, min_angle: -50, max_speed: 50, invert: false},
+    joint2: {id: 2, neutral: 1024, max_angle: 50, min_angle: -50, max_speed: 50, invert: false},
+    joint3: {id: 3, neutral: 1024, max_angle: 50, min_angle: -50, max_speed: 50, invert: false},
+    joint4: {id: 4, neutral: 1700, max_angle: 50, min_angle: -50, max_speed: 50, invert: false},
+    joint5: {id: 5, neutral: 512, max_angle: 50, min_angle: -50, max_speed: 50, invert: false},
+    joint6: {id: 6, neutral: 256, max_angle: 50, min_angle: -50, max_speed: 50, invert: false}
+}
+controllers: {
+  head_controller: {type: follow_controller, joints: [joint1, joint2, joint3, joint4, joint5, joint6], action_name: follow_joint_trajectory }
+}

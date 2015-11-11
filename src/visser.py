@@ -3,7 +3,7 @@ import rospy
 from tf import transformations as tfs
 import numpy
 import math
-import robot
+import robot2 as robot
 from transitions import Machine
 import tf2_ros
 import threading
@@ -18,15 +18,6 @@ class SeeingRobot(robot.Robot):
         self.joints = numpy.array([0, -0.3, 0, 0, 0])
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
-
-        self.field = 'exist'
-        self.machine = Machine(model=self, states=SeeingRobot.states, initial='resting')
-        self.machine.add_transition('start', 'resting', 'searching')
-        self.machine.add_transition('connector_found', 'searching', 'gazing', before='entry', after='exit')
-        # self.machine.add_transition('in_reach', 'gazing', 'connecting')
-        # self.machine.add_transition('tag_lost', 'connecting', 'unloading', conditions='is_loaded')
-        # self.machine.add_transition('unloaded', 'unloading', 'searching')
-        # self.machine.add_transition('connected', 'connecting', 'resting')
 
 
     def entry(self):
@@ -65,7 +56,7 @@ class SeeingRobot(robot.Robot):
 
         exp_factor = 0.1
         while not rospy.is_shutdown() and not stop_event.is_set():
-            pose, success = self.get_transform(target, "map", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0.1))
+            pose, success = self.get_transform(target, "base", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0.1))
             if success:
                 try:
                     self.target_pose = exp_factor*pose + (1-exp_factor)*self.target_pose
@@ -83,7 +74,7 @@ class SeeingRobot(robot.Robot):
 
         was_found = False
         while not rospy.is_shutdown():
-            pose, on_sight = self.get_transform(target, "map", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0))
+            pose, on_sight = self.get_transform(target, "base", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0))
             if on_sight:
                 next_pose = pose
             else:
@@ -113,7 +104,7 @@ class SeeingRobot(robot.Robot):
         tinit = rospy.Time.now()
         while not rospy.is_shutdown():
 
-            pose_s, ever_on_sight = self.get_transform(target, "map", rospy.Time(0), rospy.Duration(self.dt))
+            pose_s, ever_on_sight = self.get_transform(target, "base", rospy.Time(0), rospy.Duration(self.dt))
             if not ever_on_sight:
                 return False
 
@@ -121,7 +112,7 @@ class SeeingRobot(robot.Robot):
             count = 1
             time0 = rospy.Time.now() - rospy.Duration(0.2)
             for k in range(0, 20):
-                pose, on_sight = self.get_transform(target, "map", time0-rospy.Duration(0.05*k), rospy.Duration(0))
+                pose, on_sight = self.get_transform(target, "base", time0-rospy.Duration(0.05*k), rospy.Duration(0))
                 if on_sight:
                     pose_s = pose_s + pose
                     count = count + 1
@@ -134,7 +125,7 @@ class SeeingRobot(robot.Robot):
                 self.move(half_plan)
 
             error = numpy.linalg.norm(target_pose-self.space_coordinates(self.joints))
-            if error < 0.02:
+            if error < 0.001:
                 return True
 
             if rospy.Time.now() - tinit > rospy.Duration(30):
@@ -146,7 +137,7 @@ class SeeingRobot(robot.Robot):
         tinit = rospy.Time.now()
         while not rospy.is_shutdown():
 
-            pose, on_sight = self.get_transform(target_id, "map", rospy.Time(0), rospy.Duration(0.1))
+            pose, on_sight = self.get_transform(target_id, "base", rospy.Time(0), rospy.Duration(0.1))
             if not on_sight:
                 return False
 
@@ -179,9 +170,9 @@ if __name__ == '__main__':
     print "Setting up..."
     # get searching poses
     rospy.sleep(2)
-    pose1, success = r.get_transform("search1", "map", rospy.Time(0), rospy.Duration(1))
-    pose2, success = r.get_transform("search2", "map", rospy.Time(0), rospy.Duration(1))
-    pose3, success = r.get_transform("search3", "map", rospy.Time(0), rospy.Duration(1))
+    pose1, success = r.get_transform("search1", "base", rospy.Time(0), rospy.Duration(1))
+    pose2, success = r.get_transform("search2", "base", rospy.Time(0), rospy.Duration(1))
+    pose3, success = r.get_transform("search3", "base", rospy.Time(0), rospy.Duration(1))
     search_poses = [pose1, pose2, pose1, pose3]
 
     print("Scanning for connector")
@@ -196,13 +187,16 @@ if __name__ == '__main__':
             r.move(plan)
 
         rospy.sleep(1)
-        near_female = r.robust_move2("_female")
+        near_female = r.robust_move("_female")
 
     print "Performing final connection..."
     rospy.sleep(2)
-    r.robust_move2("female")
+    r.robust_move("female")
 
     print "Concluded"
+    
+    rospy.sleep(2)
+    r.robust_move("_female")
     plan, success = r.plan(pose1, 0.5)
     r.move(plan)
 

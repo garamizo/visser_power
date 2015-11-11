@@ -42,6 +42,9 @@ class Robot(object):
     def __init__(self):
 
         def transformation_matrix(rot_angle, rot_dir, trans):
+            # print "rot_angle: ", rot_angle
+            # print "rot_dir: ", rot_dir
+            # print "trans: ", trans
             return tfs.concatenate_matrices(
                 tfs.rotation_matrix(rot_angle, rot_dir),
                 tfs.translation_matrix(trans))
@@ -58,28 +61,35 @@ class Robot(object):
         # axis = [[0, 0, 1], [0, 1, 0], [0, 1, 0], [0, 0, 1]]
         # space_from_matrix = lambda T: numpy.array([T[0,3], T[1,3], T[2,3], math.atan2(T[1,0], T[0,0])])
 
-        # define kinematic chain for Vision Robot
+        # define kinematic chain for Lynxmotion 5DOF
+        # links = ['map', 'link1', 'link2', 'link3', 'link4', 'gripper']
+        # lnames = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5']
+        # offset = [[0, 0, 70e-3], [0, 0, 145e-3], [150e-3, 0, 0], [50e-3, 0, 0], [75e-3, 0, 0]]
+        # axis = [[0, 0, 1], [0, 1, 0], [0, 1, 0], [1, 0, 0], [0, 1, 0]]
+        # space_from_matrix = lambda T: numpy.array([T[0,3], T[1,3], T[2,3], math.atan2(T[1,0], T[0,0]), math.asin(-T[2,0])])
+        # joint_offset = numpy.array([100, 90, 90, 70, 90])*numpy.pi/180.0
+        # joint_direction = numpy.array([-1, 1, -1, 1, -1])
+        # joints_lim = [(numpy.array(5*[numpy.pi]) - joint_offset)/joint_direction, (numpy.zeros(5) - joint_offset)/joint_direction]
+
+        # define kinematic chain for WidowX
         links = ['map', 'link1', 'link2', 'link3', 'link4', 'gripper']
-        jnames = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5']
-        offset = [[0, 0, 70e-3], [0, 0, 145e-3], [150e-3, 0, 0], [50e-3, 0, 0], [75e-3, 0, 0]]
-        axis = [[0, 0, 1], [0, 1, 0], [0, 1, 0], [1, 0, 0], [0, 1, 0]]
-        space_from_matrix = lambda T: numpy.array([T[0,3], T[1,3], T[2,3], math.atan2(T[1,0], T[0,0]), math.asin(-T[2,0])])
+        lnames = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5']
+        offset = [[0, 0, 130e-3], [45e-3, 0, 145e-3], [143e-3, 0, 0], [0, 0, 0], [0, 0, -140e-3]]
+        axis = [[0, 0, 1], [0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 0, 1]]
+        space_from_matrix = lambda T: numpy.array([T[0,3], T[1,3], T[2,3], math.atan2(T[1,0], T[0,0]), math.asin(-T[2,0])]) # x y z yaw pitch
+        joint_offset = numpy.array([100, 90, 90, 70, 90])*numpy.pi/180.0
+        joint_direction = numpy.array([-1, 1, -1, 1, -1])
+        joints_lim = [(numpy.array(5*[numpy.pi]) - joint_offset)/joint_direction, (numpy.zeros(5) - joint_offset)/joint_direction]
 
-        (self.links, self.jnames, self.offset, self.axis, self.space_from_matrix) = (links, jnames, offset, axis, space_from_matrix)
-
-        self.transformations = [partial(transformation_matrix, rot_dir=axis[k], trans=offset[k]) for k in range(len(self.jnames))]
+        (self.links, self.lnames, self.offset, self.axis, self.space_from_matrix) = (links, lnames, offset, axis, space_from_matrix)
+        self.transformations = [partial(transformation_matrix, rot_dir=axis[k], trans=offset[k]) for k in range(len(self.lnames))]
 
         self.dt = 0.05
         self.dof = len(self.transformations)
-        self.joints = numpy.zeros(self.dof)
-
-        offset = numpy.array([100, 90, 90, 70, 90])*numpy.pi/180.0
-        direction = numpy.array([-1, 1, -1, 1, -1])
-
-        joints_lim = [(numpy.array(self.dof*[numpy.pi]) - offset)/direction, (numpy.zeros(self.dof) - offset)/direction]
+        self.joints = numpy.zeros(self.dof)   
+        
         self.joints_max = numpy.amax(joints_lim, 0)
         self.joints_min = numpy.amin(joints_lim, 0)
-        print self.joints_max, self.joints_min
 
         t = threading.Thread(target=self.state_publisher)
         t.start()
@@ -136,7 +146,7 @@ class Robot(object):
 
             # write to JointState
             header = Header(stamp=time)
-            msg = JointState(header=header, name=self.jnames, position=self.joints,
+            msg = JointState(header=header, name=self.lnames, position=self.joints,
                              velocity=numpy.zeros(self.dof), effort=numpy.zeros(self.dof))
             self.joint_publisher.publish(msg)
 

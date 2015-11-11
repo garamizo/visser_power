@@ -1,22 +1,22 @@
 <launch>
 	<!-- Define static transformations -->
-	<node pkg="tf" type="static_transform_publisher" name="t1a" args="-20e-3 -45e-3 90e-3 -1.57 0 -1.57 gripper long_cam 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t1b" args="-20e-3 45e-3 90e-3 -1.57 0 -1.57 gripper fisheye_cam 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t2" args="121.6e-3 51.2e-3 140e-3 0 1.57 -1.57 ar_marker_1 female 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t1a" args="-10e-3 90e-3 40e-3 -1.57 0 -1.57 gripper fisheye_cam 100" />
+	<!-- <node pkg="tf" type="static_transform_publisher" name="t1b" args="30e-3 80e-3 75e-3 3.14 -1.57 0 biceps_link long_cam 100" /> -->
+	<node pkg="tf" type="static_transform_publisher" name="t2" args="0 -122.5e-3 170e-3 0 1.57 -1.57 ar_marker_0 female 100" />
 	<node pkg="tf" type="static_transform_publisher" name="t3" args="-75e-3 0 0 0 0 0 female _female 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t4" args="100e-3 0 300e-3 0 0 0 map rest 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t5" args="100e-3 	0        250e-3 0 0.2 0  map search1 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t6" args="50e-3  	50e-3   250e-3 0.7854 0.2 0 map search2 100" />
-	<node pkg="tf" type="static_transform_publisher" name="t7" args="50e-3  -50e-3 250e-3 -0.7854 0.2 0 map search3 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t5" args="100e-3 	0        150e-3 0 0.2 0  base search1 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t6" args="80e-3  	80e-3   150e-3 0.7854 0.2 0 base search2 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t7" args="80e-3  -80e-3 150e-3 -0.7854 0.2 0 base search3 100" />
+	<node pkg="tf" type="static_transform_publisher" name="t8" args="0 0 0 0 0.785 0 gripper male 100" />
 
 	<!--node pkg="visual_servoing_powergrid" type="visser.py" name="main" /-->
 
 
-	<!--arg name="camera_frame_id" default="fisheye_cam" /-->
-	<!--arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/fisheye.yaml" /-->
+	<arg name="camera_frame_id" default="fisheye_cam" />
+	<arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/fisheye.yaml" />
 
-	<arg name="camera_frame_id" default="long_cam" />
-	<arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/long_camera.yaml" />
+<!-- 	<arg name="camera_frame_id" default="long_cam" />
+	<arg name="camera_info_url" default="file:///home/hirolab/.ros/camera_info/long_camera.yaml" /> -->
 
 	<!--include file="$(find usb_cam)/launch/usb_cam-test.launch"/-->
 	<node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
@@ -31,27 +31,36 @@
 	</node>
 
 
-	<arg name="marker_size" default="5.68" />
-	<arg name="max_new_marker_error" default="0.08" />
+	<arg name="marker_size" default="6" />
+	<arg name="max_new_marker_error" default="0.1" />
 	<arg name="max_track_error" default="0.2" />
 
 	<arg name="cam_image_topic" default="/usb_cam/image_raw" />
 	<arg name="cam_info_topic" default="/usb_cam/camera_info" />
 
 	<arg name="output_frame" default="$(arg camera_frame_id)" />
-	<arg name="bundle_files" default="$(find visual_servoing_powergrid)/src/tags_locations.xml" />
+	<arg name="bundle_files" default="$(find visual_servoing_powergrid)/src/bundle2.xml" />
 
 	<node name="ar_track_alvar" pkg="ar_track_alvar" type="findMarkerBundlesNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg bundle_files)" />
 
-	<node pkg="rosserial_python" type="serial_node.py" name="arduino_interface">
+<!-- 	<node pkg="rosserial_python" type="serial_node.py" name="arduino_interface">
 		<param name="port" value="/dev/ttyACM0"/>
+	</node> -->
+
+	<node name="arbotix" pkg="arbotix_python" type="arbotix_driver" output="screen">
+		<rosparam file="$(find visual_servoing_powergrid)/config/arbotix.yaml" command="load" />
 	</node>
 
-	<node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
-		<remap from="image" to="/usb_cam/image_raw"/>
-		<param name="autosize" value="true" />
-	</node>
+<!-- 	<node pkg="visual_servoing_powergrid" type="robot_sim.py" name="simulator" /> -->
 
 
+	<param name="robot_description" command="cat $(find visual_servoing_powergrid)/urdf/widowx2.urdf" />
+	<param name="use_gui" value="True"/>
+	<!--node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" /-->
+
+	<node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+	<node name="rviz" pkg="rviz" type="rviz" />
+
+	<node name="rectify" pkg="image_proc" type="image_proc" respawn="false" output="screen" ns="/usb_cam"/>
 
 </launch>
