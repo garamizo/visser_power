@@ -13,14 +13,14 @@
          <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/base_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/base_link.stl"/>
             </geometry>
              
        </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/base_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/base_link.stl"/>
             </geometry>
          </collision>
          <inertial>
@@ -33,14 +33,14 @@
          <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/shoulder_link.stl" />
+               <mesh filename="package://visual_servoing_powergrid/meshes/shoulder_link.stl" />
             </geometry>
              
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/shoulder_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/shoulder_link.stl"/>
             </geometry>
          </collision>
          <inertial>
@@ -54,14 +54,14 @@
             <origin xyz="0.04825 0 0.14" rpy="0 0 0" />
             <!--origin xyz="0 0 0" rpy="0 0 0" /-->
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/biceps_link.stl" />
+               <mesh filename="package://visual_servoing_powergrid/meshes/biceps_link.stl" />
             </geometry>
              
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/biceps_link.stl" />
+               <mesh filename="package://visual_servoing_powergrid/meshes/biceps_link.stl" />
             </geometry>
          </collision>
          <inertial>
@@ -75,14 +75,14 @@
             <origin xyz="0 0 0.14203" rpy="0 0 0" />
       <!--origin xyz="0 0 0" rpy="0 0 0" /-->
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/forearm_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/forearm_link.stl"/>
             </geometry>
             
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/forearm_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/forearm_link.stl"/>
             </geometry>
          </collision>
          <inertial>
@@ -95,14 +95,14 @@
          <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/wrist_1_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/wrist_1_link.stl"/>
             </geometry>
              
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/wrist_1_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/wrist_1_link.stl"/>
             </geometry>
          </collision>
          <inertial>
@@ -115,14 +115,14 @@
          <visual>
             <origin xyz="0 0 0.043" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/wrist_2_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/wrist_2_link.stl"/>
             </geometry>
              
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/wrist_2_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/wrist_2_link.stl"/>
             </geometry>
          </collision>
          <inertial>
@@ -135,14 +135,14 @@
          <visual>
             <origin xyz="0 0 0" rpy="0 0 1.57" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/gripper_rail_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/gripper_rail_link.stl"/>
             </geometry>
              
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/gripper_rail_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/gripper_rail_link.stl"/>
             </geometry>
          </collision>
          <inertial>
@@ -155,14 +155,14 @@
          <visual>
             <origin xyz="0 -0.0007 0" rpy="0 0 1.57" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/gripper_hand_fixed_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/gripper_hand_fixed_link.stl"/>
             </geometry>
              
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/gripper_hand_fixed_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/gripper_hand_fixed_link.stl"/>
             </geometry>
          </collision>
          <inertial>
@@ -175,14 +175,14 @@
          <visual>
             <origin xyz="0 0.0007 0" rpy="0 0 -1.57" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/gripper_hand_fixed_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/gripper_hand_fixed_link.stl"/>
             </geometry>
              
          </visual>
          <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-               <mesh filename="package://widowx_arm_description/meshes/gripper_hand_fixed_link.stl"/>
+               <mesh filename="package://visual_servoing_powergrid/meshes/gripper_hand_fixed_link.stl"/>
             </geometry>
          </collision>
          <inertial>
