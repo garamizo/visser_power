@@ -62,20 +62,37 @@ class Robot(object):
         def error_function(joint): return (self.space_coordinates(joint) - numpy.array(goal_space))
         x, _, ler, message = scipy.optimize.fsolve(error_function, self.joints, full_output=True)
         if not ler == 1:
-            print "No solution found. Target: ", goal_space
+            # print "No solution found. Target: ", goal_space
             return None, False
 
         x = (x+math.pi) % (2*math.pi) - math.pi
 
         # break trajectory to intermediate points
-        time_required = numpy.max(numpy.abs(x-self.joints)) / speed
+        current_space = self.space_coordinates(self.joints)
+        time_required = numpy.max(numpy.abs(goal_space-current_space)) / speed
         N = numpy.int(numpy.ceil(time_required / self.dt))
         mask = numpy.array(range(1, N+1)).reshape([N, 1]).repeat(self.dof, 1) / numpy.float64(N)
-        b = numpy.array(self.joints).reshape(1, self.dof).repeat(N, 0)
-        a = numpy.array(x-self.joints).reshape(1, self.dof).repeat(N, 0)
-        traject = a * mask + b
 
-        return map(numpy.array, traject), True
+        b_joint = numpy.array(self.joints).reshape(1, self.dof).repeat(N, 0)
+        a_joint = numpy.array(x-self.joints).reshape(1, self.dof).repeat(N, 0)
+        traject_joint = a_joint * mask + b_joint
+
+        # print traject_joint
+
+        # b_space = current_space.reshape(1, self.dof).repeat(N, 0)
+        # a_space = numpy.array(goal_space-current_space).reshape(1, self.dof).repeat(N, 0)
+        # traject_space = a_space * mask + b_space
+
+        # # solve for each point
+        # for k in range(0, N):
+        #     def error_func (joint): return(self.space_coordinates(joint) - traject_space[k])
+        #     x, _, ler, message = scipy.optimize.fsolve(error_func, traject_joint[k], full_output=True)
+        #     if not ler == 1:
+        #         print "Error!"
+        #     else:
+        #         traject_joint[k] = x
+
+        return traject_joint, True
 
     def move(self, newPlan):
 

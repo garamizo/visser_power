@@ -8,9 +8,13 @@ from transitions import Machine
 import tf2_ros
 import threading
 
+import tf
+
+
 class SeeingRobot(robot.Robot):
 
-    states = ['resting', 'searching', 'gazing', 'loading', 'connecting', 'unloading']
+    states = ['resting', 'searching', 'gazing',
+              'loading', 'connecting', 'unloading']
 
     def __init__(self):
 
@@ -19,13 +23,11 @@ class SeeingRobot(robot.Robot):
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
-
     def entry(self):
         print 'Enter ', self.state
 
     def exit(self):
         print 'Exit ', self.state
-
 
     def recover(self):
         super(SeeingRobot, self).recover()
@@ -43,12 +45,15 @@ class SeeingRobot(robot.Robot):
                 tfs.quaternion_matrix(quat))
 
         try:
-            msg = self.tf_buffer.lookup_transform(parent, child, when, timeout) 
+            msg = self.tf_buffer.lookup_transform(parent, child, when, timeout)
             pose = self.space_from_matrix(matrix_from_StampedTransform(msg))
             return pose, True
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             pass
+        except:
+            raise
+            return
 
         return None, False
 
@@ -56,14 +61,18 @@ class SeeingRobot(robot.Robot):
 
         exp_factor = 0.1
         while not rospy.is_shutdown() and not stop_event.is_set():
-            pose, success = self.get_transform(target, "base", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0.1))
+            pose, success = self.get_transform(
+                target, "base", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0.1))
             if success:
                 try:
-                    self.target_pose = exp_factor*pose + (1-exp_factor)*self.target_pose
+                    self.target_pose = exp_factor * pose + \
+                        (1 - exp_factor) * self.target_pose
                 except AttributeError:
                     self.target_pose = pose
+                except:
+                    raise
+                    return
             stop_event.wait(self.dt)
-
 
     def robust_move(self, target):
 
@@ -74,17 +83,19 @@ class SeeingRobot(robot.Robot):
 
         was_found = False
         while not rospy.is_shutdown():
-            pose, on_sight = self.get_transform(target, "base", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0))
+            pose, on_sight = self.get_transform(
+                target, "base", rospy.Time.now() - rospy.Duration(0.1), rospy.Duration(0))
             if on_sight:
                 next_pose = pose
             else:
                 try:
                     next_pose = self.target_pose
                 except (AttributeError, NameError):  # never saw it
+                    raise
                     was_found = False
                     break
 
-            plan, reachable = self.plan(next_pose, 0.3)
+            plan, reachable = self.plan(next_pose, 0.1)
             if reachable:
                 print "Still on sight. Moving to it."
                 self.move(plan)
@@ -98,13 +109,13 @@ class SeeingRobot(robot.Robot):
         rospy.sleep(0.2)  # wait for thread to close
         return was_found
 
-
     def robust_move2(self, target):
 
         tinit = rospy.Time.now()
         while not rospy.is_shutdown():
 
-            pose_s, ever_on_sight = self.get_transform(target, "base", rospy.Time(0), rospy.Duration(self.dt))
+            pose_s, ever_on_sight = self.get_transform(
+                target, "base", rospy.Time(0), rospy.Duration(self.dt))
             if not ever_on_sight:
                 return False
 
@@ -112,20 +123,23 @@ class SeeingRobot(robot.Robot):
             count = 1
             time0 = rospy.Time.now() - rospy.Duration(0.2)
             for k in range(0, 20):
-                pose, on_sight = self.get_transform(target, "base", time0-rospy.Duration(0.05*k), rospy.Duration(0))
+                pose, on_sight = self.get_transform(
+                    target, "base", time0 - rospy.Duration(0.05 * k), rospy.Duration(0))
                 if on_sight:
                     pose_s = pose_s + pose
                     count = count + 1
             target_pose = pose_s / count
 
             # move to inbetween point
-            next_pose = 0.3*target_pose + 0.7*self.space_coordinates(self.joints)
-            half_plan, reachable = self.plan(next_pose, 0.2)
+            next_pose = 0.3 * target_pose + 0.7 * \
+                self.space_coordinates(self.joints)
+            half_plan, reachable = self.plan(next_pose, 0.1)
             if reachable:
                 self.move(half_plan)
 
-            error = numpy.linalg.norm(target_pose-self.space_coordinates(self.joints))
-            if error < 0.001:
+            error = numpy.linalg.norm(
+                target_pose - self.space_coordinates(self.joints))
+            if error < 0.0001:
                 return True
 
             if rospy.Time.now() - tinit > rospy.Duration(30):
@@ -133,19 +147,21 @@ class SeeingRobot(robot.Robot):
 
         return False
 
-    def match_pose(self, target_id):
+    def robust_move3(self, target_id):
         tinit = rospy.Time.now()
         while not rospy.is_shutdown():
 
-            pose, on_sight = self.get_transform(target_id, "base", rospy.Time(0), rospy.Duration(0.1))
+            pose, on_sight = self.get_transform(
+                target_id, "base", rospy.Time(0), rospy.Duration(0.1))
             if not on_sight:
                 return False
 
             pose_error = pose - self.space_coordinates(self.joints)
             factor_p = 0.1
-            next_pose = self.space_coordinates(self.joints) + factor_p*pose_error
+            next_pose = self.space_coordinates(
+                self.joints) + factor_p * pose_error
 
-            plan, reachable = self.plan(next_pose, 0.2)
+            plan, reachable = self.plan(next_pose, 0.1)
             if reachable:
                 self.move(plan)
 
@@ -155,154 +171,114 @@ class SeeingRobot(robot.Robot):
             if rospy.Time.now() - tinit > rospy.Duration(30):
                 return False
 
-        return False  
+        return False
 
 
 
 
-if __name__ == '__main__':
 
-    r = SeeingRobot()
+    def robust_move4(self, target_id):
 
-    # try:
-        # scan for female connector
+        br = tf.TransformBroadcaster()
+        current_pose = self.space_coordinates(self.joints)
+        t0 = rospy.Time.now()
+        tol = 1e-4
+        timeout = 20
+        duration = 0
+        ratio = 1
+        while not rospy.is_shutdown() and duration < timeout:
 
-    print "Setting up..."
-    # get searching poses
-    rospy.sleep(2)
-    pose1, success = r.get_transform("search1", "base", rospy.Time(0), rospy.Duration(1))
-    pose2, success = r.get_transform("search2", "base", rospy.Time(0), rospy.Duration(1))
-    pose3, success = r.get_transform("search3", "base", rospy.Time(0), rospy.Duration(1))
-    search_poses = [pose1, pose2, pose1, pose3]
+            duration = (rospy.Time.now() - t0).to_sec()
 
-    print("Scanning for connector")
+            tmp, found = self.get_transform(target_id, "base", rospy.Time(0), rospy.Duration(0))
+            if not found:
+                print "Not found"
+                continue
+            try:
+                target_pose = ratio*tmp + (1-ratio)*target_pose
+            except (UnboundLocalError):
+                target_pose = tmp
+                continue
 
-    pose_idx = 0
-    near_female = False
-    while not near_female and not rospy.is_shutdown():
-        pose_idx = (pose_idx + 1) % len(search_poses)
-        plan, success = r.plan(search_poses[pose_idx], 0.5)
-        if success:
-            print "Moving to search pose #", pose_idx
+            next_pose = current_pose + (target_pose - current_pose)*duration/timeout
+
+            plan, reachable = self.plan(next_pose, 0.1)
+            if reachable:
+                br.sendTransform((next_pose[0], next_pose[1], next_pose[2]), 
+                    tf.transformations.quaternion_from_euler(next_pose[3], next_pose[4], 0), 
+                    rospy.Time.now(), "track %s" % target_id, "base")
+                self.move(plan)
+            else:
+                print "Not reachable!", next_pose
+
+            current_pose = self.space_coordinates(self.joints)
+            dist = numpy.linalg.norm(target_pose - current_pose)
+            if dist < tol:
+                print dist, target_pose, current_pose
+                return True
+
+        print "----------------------------"
+        return False
+
+
+def raise_exception():
+    raise rospy.ROSInterruptException('Interrupted')
+
+
+
+def main():
+
+    # rospy.on_shutdown(raise_exception)
+
+    try:
+        r = SeeingRobot()
+        move_func = r.robust_move3
+
+        print "Setting up..."
+        # get searching poses
+        rospy.sleep(2)
+        pose1, success = r.get_transform("search1", "base", rospy.Time(0), rospy.Duration(1))
+        pose2, success = r.get_transform("search2", "base", rospy.Time(0), rospy.Duration(1))
+        pose3, success = r.get_transform("search3", "base", rospy.Time(0), rospy.Duration(1))
+        search_poses = [pose1, pose2, pose1, pose3]
+        idx_poses = [1, 2, 1, 3]
+
+        print("Scanning for connector...")
+
+        pose_idx = 0
+        near_female = False
+        while not near_female and not rospy.is_shutdown():
+            pose_idx = (pose_idx + 1) % len(search_poses)
+            plan, success = r.plan(search_poses[pose_idx], 0.2)
+            if success:
+                print "Moving to search pose #", idx_poses[pose_idx], "..."
+                r.move(plan)
+
+            rospy.sleep(1)
+            near_female = move_func("_female")
+        rospy.sleep(2)
+
+        print "Performing final connection..."
+        if move_func("female"):
+            print "Connector in place!"
+            rospy.sleep(1)
+
+            print "Stepping back..."
+            if not move_func("_female"):
+                print "Can't retract. Going back anyway..."
+
+            plan, success = r.plan(pose1, 0.1)
             r.move(plan)
 
-        rospy.sleep(1)
-        near_female = r.robust_move("_female")
-
-    print "Performing final connection..."
-    rospy.sleep(2)
-    r.robust_move("female")
-
-    print "Concluded"
-    
-    rospy.sleep(2)
-    r.robust_move("_female")
-    plan, success = r.plan(pose1, 0.5)
-    r.move(plan)
+        else:
+            print "Can't connect!"
 
 
-    # except:
-    #     print "Oops!"
-    #     pass
+    except (rospy.ROSInterruptException, KeyboardInterrupt):
+        return
 
-    rospy.spin()
+    print 'Finished.'
+    return
 
-# if __name__ == '__main__':
-
-#     try:
-#         r = SeeingRobot()
-
-#         # scan for female connector
-#         print("Scanning for connector")
-#         search_poses = ["search1", "search2", "search1", "search3"]
-#         pose_idx = 0
-#         connector_inrange = False
-#         while not connector_inrange:
-#             pose_idx = (pose_idx + 1) % len(search_poses)
-#             pose, success = r.get_transform(search_poses[pose_idx], "map", rospy.Duration(1))
-#             plan, success = r.plan(r.space_from_matrix(pose), 1)
-#             if success:
-#                 r.move(plan)
-
-#             pose, connector_found = r.get_transform("_female", "map", rospy.Duration(1))
-#             if connector_found: # has to be reachable
-#                 print "Connector found!"
-#                 plan, connector_inrange = r.plan(r.space_from_matrix(pose), 0.1)
-#             rospy.sleep(1)
-
-
-#         print "Immediate: ", r.space_from_matrix(pose)
-#         try:
-#             print "From callback: ", r.target_pose
-#         except AttributeError:
-#             print "target_pose not defined"
-
-#         # move close to connector when in range
-#         print("Connector is reachable! Moving to _female")
-#         r.move(plan)
-
-#         pose, still_on_sight = r.get_transform("_female", "map", rospy.Duration(1))
-#         if still_on_sight:
-#             plan, success = r.plan(r.space_from_matrix(pose), 0.3)
-#             if success:
-#                 print "Still on sight. Moving to it."
-#                 r.move(plan)
-
-#         # reajusting plan
-#         print "Reajusting plan"
-#         rospy.sleep(2)
-#         plan, success = r.plan(r.target_pose, 0.3)
-#         print r.target_pose
-#         if success:
-#             r.move(plan)
-
-#         pose, still_on_sight = r.get_transform("_female", "map", rospy.Duration(1))
-#         if still_on_sight:
-#             plan, success = r.plan(r.space_from_matrix(pose), 0.3)
-#             if success:
-#                 print "Still on sight. Moving to it."
-#                 r.move(plan)
-
-
-#         print("Finalizing")
-        
-#     except:
-#         pass
-
-#     rospy.spin()
-
-# if __name__ == '__main__':
-
-#     r = SeeingRobot()
-
-#     count = 0
-#     search_poses = ["search1", "search2", "search1", "search3"]
-
-#     search_rate = rospy.Rate(10)
-#     while not rospy.is_shutdown():
-
-#         if r.state == 'resting':
-
-#             r.start()
-
-#         elif r.state == 'searching':
-
-#             search_rate.sleep()
-#             count = (count + 1) % 4
-
-#             pose, success = r.get_transform(search_poses[count], "map")
-#             if success:
-#                 plan, success = r.plan(r.space_from_matrix(pose), 1)
-#                 r.move(plan)
-            
-#                 rospy.sleep(3)
-#                 pose, success = r.get_transform("_female", "map")
-#                 if success:
-#                     r.connector_found(pose)
-#             #if success: r.tag_found()
-
-#         elif r.state == 'gazing':
-#             print 'gazing'
-
-
-    # rospy.spin()
+if __name__ == '__main__':
+    main()
