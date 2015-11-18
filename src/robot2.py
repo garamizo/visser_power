@@ -38,7 +38,7 @@ class Robot(object):
         chain = tree.getChain("base", "male")
         self.dk_solver = PyKDL.ChainFkSolverPos_recursive(chain)
         
-        self.dt = 0.05
+        self.dt = 0.02
         self.dof = int(chain.getNrOfJoints())
         self.joints = numpy.zeros(self.dof)
         
@@ -60,7 +60,7 @@ class Robot(object):
         # return tuples of joint coordinates to be moved at every self.dt
         # first calculate goal_joint
         def error_function(joint): return (self.space_coordinates(joint) - numpy.array(goal_space))
-        x, _, ler, message = scipy.optimize.fsolve(error_function, self.joints, full_output=True)
+        x, _, ler, message = scipy.optimize.fsolve(error_function, 0*self.joints, full_output=True)
         if not ler == 1:
             # print "No solution found. Target: ", goal_space
             return None, False

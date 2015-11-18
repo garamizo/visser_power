@@ -182,10 +182,10 @@ class SeeingRobot(robot.Robot):
         br = tf.TransformBroadcaster()
         current_pose = self.space_coordinates(self.joints)
         t0 = rospy.Time.now()
-        tol = 1e-4
-        timeout = 20
+        tol = 5e-3
+        timeout = 20.0
         duration = 0
-        ratio = 1
+        ratio = 0.5
         while not rospy.is_shutdown() and duration < timeout:
 
             duration = (rospy.Time.now() - t0).to_sec()
@@ -202,11 +202,11 @@ class SeeingRobot(robot.Robot):
 
             next_pose = current_pose + (target_pose - current_pose)*duration/timeout
 
+            br.sendTransform((next_pose[0], next_pose[1], next_pose[2]), 
+                tf.transformations.quaternion_from_euler(next_pose[3], next_pose[4], 0), 
+                rospy.Time.now(), "track %s" % target_id, "base")
             plan, reachable = self.plan(next_pose, 0.1)
             if reachable:
-                br.sendTransform((next_pose[0], next_pose[1], next_pose[2]), 
-                    tf.transformations.quaternion_from_euler(next_pose[3], next_pose[4], 0), 
-                    rospy.Time.now(), "track %s" % target_id, "base")
                 self.move(plan)
             else:
                 print "Not reachable!", next_pose
@@ -232,7 +232,7 @@ def main():
 
     try:
         r = SeeingRobot()
-        move_func = r.robust_move3
+        move_func = r.robust_move4
 
         print "Setting up..."
         # get searching poses
