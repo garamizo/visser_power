@@ -69,7 +69,48 @@ class Robot(object):
 
         # break trajectory to intermediate points
         current_space = self.space_coordinates(self.joints)
-        time_required = numpy.max(numpy.abs(goal_space-current_space)) / speed
+
+        time_required = numpy.max(numpy.abs(x-self.joints)) / speed
+        N = numpy.int(numpy.ceil(time_required / self.dt))
+        mask = numpy.array(range(1, N+1)).reshape([N, 1]).repeat(self.dof, 1) / numpy.float64(N)
+
+        b_joint = numpy.array(self.joints).reshape(1, self.dof).repeat(N, 0)
+        a_joint = numpy.array(x-self.joints).reshape(1, self.dof).repeat(N, 0)
+        traject_joint = a_joint * mask + b_joint
+
+        # print traject_joint
+
+        b_space = current_space.reshape(1, self.dof).repeat(N, 0)
+        a_space = numpy.array(goal_space-current_space).reshape(1, self.dof).repeat(N, 0)
+        traject_space = a_space * mask + b_space
+
+        # solve for each point
+        for k in range(0, N):
+            def error_func (joint): return(self.space_coordinates(joint) - traject_space[k])
+            x, _, ler, message = scipy.optimize.fsolve(error_func, 0*traject_joint[k], full_output=True)
+            if not ler == 1:
+                print "Error!"
+            else:
+                traject_joint[k] = x
+
+        return traject_joint, True
+
+    def plan_approx(self, goal_space, speed):
+        # return tuples of joint coordinates to be moved at every self.dt
+        # first calculate goal_joint
+        def error_function(joint): return numpy.linalg.norm(self.space_coordinates(joint) - numpy.array(goal_space))
+        output = scipy.optimize.minimize(error_function, 0*self.joints)
+        x = output.x
+        if not output.success:
+            # print "No solution found. Target: ", goal_space
+            return None, False, numpy.inf
+
+        x = (x+math.pi) % (2*math.pi) - math.pi
+
+        # break trajectory to intermediate points
+        current_space = self.space_coordinates(self.joints)
+
+        time_required = numpy.max(numpy.abs(x-self.joints)) / speed
         N = numpy.int(numpy.ceil(time_required / self.dt))
         mask = numpy.array(range(1, N+1)).reshape([N, 1]).repeat(self.dof, 1) / numpy.float64(N)
 
@@ -92,7 +133,7 @@ class Robot(object):
         #     else:
         #         traject_joint[k] = x
 
-        return traject_joint, True
+        return traject_joint, True, output.fun
 
     def move(self, newPlan):
 

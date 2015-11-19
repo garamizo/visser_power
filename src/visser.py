@@ -182,10 +182,10 @@ class SeeingRobot(robot.Robot):
         br = tf.TransformBroadcaster()
         current_pose = self.space_coordinates(self.joints)
         t0 = rospy.Time.now()
-        tol = 5e-3
+        tol = 3e-3
         timeout = 20.0
         duration = 0
-        ratio = 0.5
+        ratio = 0.3
         while not rospy.is_shutdown() and duration < timeout:
 
             duration = (rospy.Time.now() - t0).to_sec()
@@ -205,11 +205,17 @@ class SeeingRobot(robot.Robot):
             br.sendTransform((next_pose[0], next_pose[1], next_pose[2]), 
                 tf.transformations.quaternion_from_euler(next_pose[3], next_pose[4], 0), 
                 rospy.Time.now(), "track %s" % target_id, "base")
-            plan, reachable = self.plan(next_pose, 0.1)
+            plan, reachable = self.plan(next_pose, 0.2)
             if reachable:
                 self.move(plan)
             else:
-                print "Not reachable!", next_pose
+                print "Not reachable for ", next_pose, ". Trying approximation... "
+                plan, reachable, dist = self.plan_approx(next_pose, 0.2)
+                if not reachable or dist > 1e-1:
+                    print "Solution far off: ", dist
+                else:
+                    print plan
+                    self.move(plan)
 
             current_pose = self.space_coordinates(self.joints)
             dist = numpy.linalg.norm(target_pose - current_pose)
@@ -264,10 +270,14 @@ def main():
             rospy.sleep(1)
 
             print "Stepping back..."
-            if not move_func("_female"):
-                print "Can't retract. Going back anyway..."
+            poseb, success = r.get_transform("_female", "base", rospy.Time(0), rospy.Duration(1))
+            plan, success = r.plan(poseb, 0.2)
+            if success:
+                r.move(plan)
+            else:
+                print "Can't step back. Unsecure return..."
 
-            plan, success = r.plan(pose1, 0.1)
+            plan, success = r.plan(pose1, 0.3)
             r.move(plan)
 
         else:
